@@ -63,6 +63,15 @@ myDB(async client => {
   app.post('/login', passport.authenticate('local', { failureRedirect: '/' }), (req, res) => {
     res.redirect('/')
   })
+
+  function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) return next();
+    res.redirect('/')
+  }
+
+  app.route('/profile').get(ensureAuthenticated, (req, res) => {
+    res.render('profile')
+  })
 }).catch(e => {
   app.route('/').get((req, res) => {
     res.render('index', { title: e, message: 'Unable to connect to database' });
