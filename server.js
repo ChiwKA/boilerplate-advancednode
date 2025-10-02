@@ -13,6 +13,18 @@ const app = express();
 
 app.use(cors())
 
+app.use((req, res, next) => {
+  const allowedOrigin = req.headers.origin;
+  res.header("Access-Control-Allow-Origin", allowedOrigin);
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 fccTesting(app); //For FCC testing purposes
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use(express.json());
@@ -37,7 +49,7 @@ myDB(async client => {
   const myDataBase = await client.db('database').collection('users');
 
   app.route('/').get((req, res) => {
-    res.render('index', {title: 'Connected to Database', message: 'Please login', showLogin: true})
+    res.render('index', {title: 'Connected to Database', message: 'Please login', showLogin: true, showRegistration: true})
   });
 
   passport.serializeUser((user, done) => {
@@ -61,8 +73,11 @@ myDB(async client => {
   }))
 
   app.post('/login', passport.authenticate('local', { failureRedirect: '/' }), (req, res) => {
-    res.redirect('/')
+    res.redirect('/profile')
   })
+  // app.route('/login').post(passport.authenticate('local', { failureRedirect: '/' }), (req, res) => {
+  //   res.redirect('/')
+  // })
 
   function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
@@ -70,8 +85,50 @@ myDB(async client => {
   }
 
   app.route('/profile').get(ensureAuthenticated, (req, res) => {
-    res.render('profile')
+    res.render('profile', { username: req.user.username })
   })
+
+  app.route('/logout').get((req, res) => {
+    req.logout();
+    res.redirect('/');
+  });
+
+  app.route('/register')
+  .post((req, res, next) => {
+    myDataBase.findOne({ username: req.body.username }, (err, user) => {
+      if (err) {
+        next(err);
+      } else if (user) {
+        res.redirect('/');
+      } else {
+        myDataBase.insertOne({
+          username: req.body.username,
+          password: req.body.password
+        },
+          (err, doc) => {
+            if (err) {
+              res.redirect('/');
+            } else {
+              // The inserted document is held within
+              // the ops property of the doc
+              next(null, doc.ops[0]);
+            }
+          }
+        )
+      }
+    })
+  },
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res, next) => {
+      res.redirect('/profile');
+    }
+  );
+
+  app.use((req, res, next) => {
+    res.status(404)
+      .type('text')
+      .send('Not Found');
+  });
 }).catch(e => {
   app.route('/').get((req, res) => {
     res.render('index', { title: e, message: 'Unable to connect to database' });
