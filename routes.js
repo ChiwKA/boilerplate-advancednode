@@ -10,9 +10,12 @@ module.exports = function (app, myDataBase) {
     res.render('index', { title: 'Connected to Database', message: 'Please login', showLogin: true, showRegistration: true, showSocialAuth: true })
   });
   app.route('/auth/github').get(passport.authenticate('github'))
-  app.route('/auth/github/callback').get(passport.authenticate('github', { failureRedirect: '/' }, (req, res) => {
-    res.redirect('/profile')
-  }))
+  app.route('/auth/github/callback').get(
+    passport.authenticate('github', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
+    }
+  )
 
   app.post('/login', passport.authenticate('local', { failureRedirect: '/' }), (req, res) => {
       res.redirect('/profile')
